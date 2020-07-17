@@ -151,16 +151,20 @@ class Api {
         }
         return new Promise((resolve) => {
             this.getSpaces(dispatch, wid, sid, cid).then(s => {
-                if (sid === undefined) {
+                if (sid === undefined && s.length > 0) {
                     sid = s[0].id
                 }
-                this.getSnippets(dispatch, wid, sid, cid).then(c => {
-                    if (cid === undefined) {
-                        cid = c[0].id
-                    }
-                    dispatch({type:'UPDATE_ALL_DATA',user:this.user,spaces:this.spaces,snippets:this.snippets})
-                    resolve(`/${wid}/${sid}/${cid}`)
-                })
+                if (sid !== undefined) {
+                    this.getSnippets(dispatch, wid, sid, cid).then(c => {
+                        if (cid === undefined) {
+                            cid = c[0].id
+                        }
+                        dispatch({ type: 'UPDATE_ALL_DATA', user: this.user, spaces: this.spaces, snippets: this.snippets })
+                        resolve(`/${wid}/${sid}/${cid}`)
+                    })
+                } else {
+                    resolve(`/${wid}`);
+                }
             })
         })
     }
@@ -174,8 +178,8 @@ class Api {
                 var spaces = []
                 a.forEach(space => {
                     spaces.push(space.data())
-                }); 
-                this.spaces = spaces; 
+                });
+                this.spaces = spaces;
                 resolve(spaces)
             })
         })
@@ -191,8 +195,8 @@ class Api {
                 var snippets = []
                 a.forEach(space => {
                     snippets.push(space.data())
-                }); 
-                this.snippets = snippets; 
+                });
+                this.snippets = snippets;
                 resolve(snippets)
             })
         })
@@ -208,6 +212,35 @@ class Api {
                 dispatch({ type: 'UPDATE_SNIPPETS', snippets: a })
                 return resolve(a)
             }).catch(e => reject(e))
+        })
+    }
+
+    createWorkspace = async (dispatch, wsDef, user) => {
+        debugger;
+        return await this.createWorkspaceInFirestore(wsDef, user)
+            .then((ws) => {
+                this.updateUserInfo(dispatch, user);
+                dispatch({ type: 'UPDATE_WORKSPACES', workspaces: user.workspaces })
+            })
+    }
+
+    createWorkspaceInFirestore(wsDef,user) {
+        return new Promise((resolve, reject) => {
+            this.store.collection("/workspaces/").add({
+                title: wsDef.title,
+                createdOn: new Date(),
+                lastUpdatedOn: new Date(),
+                members: wsDef.members,
+                private: true
+            }).then(function (docRef) {
+                console.log("Document written with ID: ", docRef.id);
+                wsDef.id = docRef.id;
+                user.workspaces.push(wsDef);
+                resolve(wsDef);
+            }).catch(function (error) {
+                console.error("Error adding document: ", error);
+                resolve(wsDef);
+            });
         })
     }
 }
